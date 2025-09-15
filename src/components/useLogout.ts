@@ -1,4 +1,5 @@
 import { API_ENDPOINTS } from "@/lib/apiEndpoints";
+import { toast } from "sonner";
 
 export async function logout() {
   try {
@@ -6,9 +7,11 @@ export async function logout() {
       method: "POST",
       credentials: "include",
     });
+    toast.success("Logout successful!");
     // Optionally clear client-side state here
     return true;
   } catch {
+    toast.error("Logout failed: Network error");
     return false;
   }
 }

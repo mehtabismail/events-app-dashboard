@@ -35,7 +35,7 @@ export default function ThemeSwitcher() {
       onClick={toggleTheme}
       className='fixed top-4 right-4 z-50'
     >
-      {theme === "dark" ? "🌙 Dark" : "☀️ Light"}
+      {theme !== "dark" ? "🌙 Dark" : "☀️ Light"}
     </Button>
   );
 }

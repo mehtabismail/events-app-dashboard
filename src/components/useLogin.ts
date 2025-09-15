@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { API_ENDPOINTS } from "@/lib/apiEndpoints";
 
 export function useLogin() {
@@ -21,13 +22,16 @@ export function useLogin() {
       if (!res.ok) {
         setError("Invalid credentials");
         setLoading(false);
+        toast.error("Login failed: Invalid credentials");
         return false;
       }
       setLoading(false);
+      toast.success("Login successful!");
       return true;
-    } catch (err) {
+    } catch {
       setError("Network error");
       setLoading(false);
+      toast.error("Login failed: Network error");
       return false;
     }
   }

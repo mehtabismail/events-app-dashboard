@@ -20,6 +20,7 @@ function LoginModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const defaultPassword = isDev ? "Admin@123" : "";
   const [showBackdrop, setShowBackdrop] = useState(open);
   const { login, loading, error } = useLogin();
+  const [showPassword, setShowPassword] = useState(false);
   useEffect(() => {
     if (open) {
       setShowBackdrop(true);
@@ -110,7 +111,7 @@ function LoginModal({ open, onClose }: { open: boolean; onClose: () => void }) {
                 disabled={loading}
               />
             </div>
-            <div>
+            <div className='relative'>
               <label
                 htmlFor='password'
                 className='block text-sm font-medium text-zinc-700 dark:text-zinc-300'
@@ -120,13 +121,61 @@ function LoginModal({ open, onClose }: { open: boolean; onClose: () => void }) {
               <input
                 id='password'
                 name='password'
-                type='password'
+                type={showPassword ? "text" : "password"}
                 placeholder='••••••••'
                 required
                 defaultValue={defaultPassword}
-                className='mt-2 w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500'
+                className='mt-2 w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10'
                 disabled={loading}
               />
+              <button
+                type='button'
+                tabIndex={-1}
+                className='absolute right-3 top-9 text-zinc-500 dark:text-zinc-300 hover:text-blue-500'
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <svg
+                    xmlns='http://www.w3.org/2000/svg'
+                    width='22'
+                    height='22'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                  >
+                    <path
+                      stroke='currentColor'
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      strokeWidth='2'
+                      d='M17.94 17.94A10.06 10.06 0 0 1 12 20c-5 0-9.27-3.11-10.44-7.44a2.99 2.99 0 0 1 0-1.12A10.06 10.06 0 0 1 6.06 6.06m3.53-1.6A9.98 9.98 0 0 1 12 4c5 0 9.27 3.11 10.44 7.44a2.99 2.99 0 0 1 0 1.12c-.36 1.36-1.08 2.62-2.06 3.68M9.53 4.46l9.01 9.01M4.46 4.46l15.08 15.08'
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    xmlns='http://www.w3.org/2000/svg'
+                    width='22'
+                    height='22'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                  >
+                    <path
+                      stroke='currentColor'
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      strokeWidth='2'
+                      d='M1.56 12.56A10.06 10.06 0 0 1 6.06 6.06 9.98 9.98 0 0 1 12 4c5 0 9.27 3.11 10.44 7.44a2.99 2.99 0 0 1 0 1.12A10.06 10.06 0 0 1 17.94 17.94 9.98 9.98 0 0 1 12 20c-5 0-9.27-3.11-10.44-7.44a2.99 2.99 0 0 1 0-1.12z'
+                    />
+                    <circle
+                      cx='12'
+                      cy='12'
+                      r='3'
+                      stroke='currentColor'
+                      strokeWidth='2'
+                    />
+                  </svg>
+                )}
+              </button>
             </div>
             {error && (
               <div className='text-red-500 text-sm text-center'>{error}</div>
@@ -145,24 +194,35 @@ function LoginModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   );
 }
 
-export default function GreetingSplash() {
+type GreetingSplashProps = {
+  showLoginOnly?: boolean;
+};
+
+export default function GreetingSplash({ showLoginOnly = false }: GreetingSplashProps) {
   const [step, setStep] = useState(0);
   const [showSplash, setShowSplash] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
 
   useEffect(() => {
+    if (showLoginOnly) {
+      setShowSplash(true);
+      setShowLogin(true);
+      return;
+    }
     if (step < greetings.length) {
-      const timer = setTimeout(() => setStep(step + 1), 180); // Even faster speed
+      const timer = setTimeout(() => setStep(step + 1), 180);
       return () => clearTimeout(timer);
     } else {
       const fadeTimer = setTimeout(() => setShowSplash(true), 300);
       return () => clearTimeout(fadeTimer);
     }
-  }, [step]);
+  }, [step, showLoginOnly]);
 
   return (
     <>
-      {!showSplash ? (
+      {showLoginOnly ? (
+        <LoginModal open={true} onClose={() => {}} />
+      ) : !showSplash ? (
         <span
           key={step}
           className='text-5xl font-extrabold text-white animate-fade-in-out'

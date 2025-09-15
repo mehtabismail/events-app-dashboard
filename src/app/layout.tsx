@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import React from "react";
+import ToasterProvider from "@/components/ToasterProvider";
+import { Providers } from "./providers";
 import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
@@ -58,7 +60,7 @@ export default function RootLayout({
         cz-shortcut-listen='true'
       >
         <Analytics />
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
