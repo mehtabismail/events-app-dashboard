@@ -5,7 +5,7 @@ export async function logout() {
   try {
     await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}${API_ENDPOINTS.logout}`, {
       method: "POST",
-      credentials: "include",
+      // credentials: "include",
     });
     toast.success("Logout successful!");
     // Optionally clear client-side state here

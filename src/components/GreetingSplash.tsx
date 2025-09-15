@@ -198,7 +198,9 @@ type GreetingSplashProps = {
   showLoginOnly?: boolean;
 };
 
-export default function GreetingSplash({ showLoginOnly = false }: GreetingSplashProps) {
+export default function GreetingSplash({
+  showLoginOnly = false,
+}: GreetingSplashProps) {
   const [step, setStep] = useState(0);
   const [showSplash, setShowSplash] = useState(false);
   const [showLogin, setShowLogin] = useState(false);

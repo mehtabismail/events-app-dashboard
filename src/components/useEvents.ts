@@ -66,17 +66,31 @@ export function useEvents() {
   async function fetchEvents() {
     setLoading(true);
     setError(null);
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      setError("No token found, please login again");
+      setLoading(false);
+      toast.error("Please login to fetch events");
+      return false;
+    }
+    console.log(token, "checking token...");
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_BASE_URL}${API_ENDPOINTS.all_events}`,
         {
           method: "GET",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          // credentials: "include",
         }
       );
 
       if (!res.ok) {
+        console.log(res);
         setError("Failed to fetch events");
         setLoading(false);
         toast.error("Failed to fetch events");
@@ -84,6 +98,7 @@ export function useEvents() {
       }
 
       const data: EventsResponse = await res.json();
+      console.log(data);
       setEvents(data.events);
       setLoading(false);
       toast.success("Events fetched successfully!");

@@ -20,15 +20,26 @@ export function useLogin() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),
-          credentials: "include",
+          // credentials: "include",
         }
       );
+
       if (!res.ok) {
         setError("Invalid credentials");
         setLoading(false);
         toast.error("Login failed: Invalid credentials");
         return false;
       }
+      const data = await res.json();
+      if (res?.ok && data?.user?.token) {
+        // console.log("storing token ", data.user?.token);
+        // toast.success("token saved");
+        // localStorage.setItem("token", data?.user?.token); // store token
+        document.cookie = `token=${data?.user?.token}; path=/; max-age=3600`;
+      } else {
+        toast.success("token not saved");
+      }
+      console.log(res, "after login");
       setLoading(false);
       toast.success("Login successful!");
       return true;
