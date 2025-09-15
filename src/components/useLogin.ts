@@ -9,6 +9,10 @@ export function useLogin() {
   async function login(email: string, password: string) {
     setLoading(true);
     setError(null);
+
+    console.log(process.env.NEXT_PUBLIC_BASE_URL);
+    console.log(API_ENDPOINTS.login);
+    console.log(`${process.env.NEXT_PUBLIC_BASE_URL}${API_ENDPOINTS.login}`);
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_BASE_URL}${API_ENDPOINTS.login}`,
