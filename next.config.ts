@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
         pathname: "**", // allow all paths
       },
     ],
+    domains: [
+      "https://events-app-backend-stage.up.railway.app",
+      "https://events-app-dashboard-qdurobb6o-mehtab-ismails-projects.vercel.app",
+      "https://events-app-dashboard-production.up.railway.app",
+    ],
   },
 };
 

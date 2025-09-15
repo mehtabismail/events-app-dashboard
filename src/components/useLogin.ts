@@ -35,7 +35,7 @@ export function useLogin() {
         // console.log("storing token ", data.user?.token);
         // toast.success("token saved");
         // localStorage.setItem("token", data?.user?.token); // store token
-        document.cookie = `token=${data?.user?.token}; path=/; max-age=3600`;
+        // document.cookie = `token=${data?.user?.token}; path=/; max-age=3600`;
       } else {
         toast.success("token not saved");
       }
