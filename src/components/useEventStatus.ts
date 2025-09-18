@@ -2,43 +2,43 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { API_ENDPOINTS } from "@/lib/apiEndpoints";
 
-export function useLogin() {
+export type EventStatus = "pending" | "approved" | "rejected" | "suspended";
+
+export function useEventStatus() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function login(email: string, password: string) {
+  async function updateEventStatus(eventId: string, status: EventStatus) {
     setLoading(true);
     setError(null);
-
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}${API_ENDPOINTS.login}`,
+        `${process.env.NEXT_PUBLIC_BASE_URL}${API_ENDPOINTS.update_event_status}/${eventId}/status`,
         {
-          method: "POST",
+          method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ status }),
           credentials: "include",
         }
       );
 
       if (!res.ok) {
-        setError("Invalid credentials");
+        setError("Failed to update event status");
         setLoading(false);
-        toast.error("Login failed: Invalid credentials");
+        toast.error("Failed to update event status");
         return false;
       }
-      const data = await res.json();
 
       setLoading(false);
-      toast.success("Login successful!");
+      toast.success(`Event status updated to ${status}!`);
       return true;
     } catch {
       setError("Network error");
       setLoading(false);
-      toast.error("Login failed: Network error");
+      toast.error("Failed to update event status: Network error");
       return false;
     }
   }
 
-  return { login, loading, error };
+  return { updateEventStatus, loading, error };
 }

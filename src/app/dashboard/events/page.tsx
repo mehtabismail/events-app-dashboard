@@ -2,6 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useEvents } from "@/components/useEvents";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +16,7 @@ import {
 
 export default function DashboardEvents() {
   const { events, loading, error, refetch } = useEvents();
+  const router = useRouter();
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
@@ -212,6 +214,9 @@ export default function DashboardEvents() {
                   <Button
                     size='sm'
                     className='flex-1 bg-blue-600 hover:bg-blue-700 text-white'
+                    onClick={() =>
+                      router.push(`/dashboard/events/${event._id}`)
+                    }
                   >
                     View Details
                   </Button>
@@ -219,6 +224,9 @@ export default function DashboardEvents() {
                     size='sm'
                     variant='outline'
                     className='hover:bg-gray-50 !text-black dark:text-white border border-gray-300 dark:border-gray-600'
+                    onClick={() =>
+                      router.push(`/dashboard/events/${event._id}`)
+                    }
                   >
                     Edit
                   </Button>

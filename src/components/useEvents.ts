@@ -67,6 +67,12 @@ export function useEvents() {
     setLoading(true);
     setError(null);
 
+    console.log(
+      "Fetching events from:",
+      `${process.env.NEXT_PUBLIC_BASE_URL}${API_ENDPOINTS.all_events}`
+    );
+    console.log("Cookies:", document.cookie);
+
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_BASE_URL}${API_ENDPOINTS.all_events}`,
