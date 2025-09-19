@@ -10,16 +10,21 @@ export function useLogin() {
     setLoading(true);
     setError(null);
 
+    // Use local API proxy for development, direct backend for production
+    const apiUrl =
+      process.env.NODE_ENV === "development"
+        ? "/api/login"
+        : `${process.env.NEXT_PUBLIC_BASE_URL}${API_ENDPOINTS.login}`;
+
+    console.log("Login API URL:", apiUrl);
+
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}${API_ENDPOINTS.login}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-          credentials: "include",
-        }
-      );
+      const res = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+        credentials: "include",
+      });
 
       if (!res.ok) {
         setError("Invalid credentials");

@@ -3,10 +3,8 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { useEventStatus, EventStatus } from "@/components/useEventStatus";
-import { Event } from "@/components/useEvents";
 import { useSingleEvent } from "@/components/useSingleEvent";
-import GoogleMapsWrapper from "@/components/GoogleMapsWrapper";
+import { useEventStatus, EventStatus } from "@/components/useEventStatus";
 import {
   Calendar,
   MapPin,
@@ -23,38 +21,21 @@ import {
   Edit,
 } from "lucide-react";
 
-interface EventDetailPageProps {
-  params: Promise<{
-    id: string;
-  }>;
-}
-
-export default function EventDetailPage({ params }: EventDetailPageProps) {
+export default function EventDetailPage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<EventStatus>("pending");
   const [isSliderPlaying, setIsSliderPlaying] = useState(true);
-  const [eventId, setEventId] = useState<string>("");
+  const [eventId, setEventId] = useState<string>("68c6b4a5141d5e59c64e1059"); // Hardcoded for testing
 
   const { updateEventStatus, loading: statusLoading } = useEventStatus();
-  const { event, loading, error, refetch } = useSingleEvent(eventId);
+  const { event, loading, error } = useSingleEvent(eventId);
 
   console.log("EventDetailPage rendered with eventId:", eventId);
   console.log("Event:", event);
   console.log("Loading:", loading);
   console.log("Error:", error);
-
-  // Handle async params
-  useEffect(() => {
-    const getParams = async () => {
-      const resolvedParams = await params;
-      console.log("Resolved params:", resolvedParams);
-      console.log("Setting eventId to:", resolvedParams.id);
-      setEventId(resolvedParams.id);
-    };
-    getParams();
-  }, [params]);
 
   // Update selected status when event data changes
   useEffect(() => {
@@ -74,7 +55,7 @@ export default function EventDetailPage({ params }: EventDetailPageProps) {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [event?.images, isSliderPlaying]);
+  }, [event, currentImageIndex, isSliderPlaying]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -90,30 +71,30 @@ export default function EventDetailPage({ params }: EventDetailPageProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "approved":
-        return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200";
+        return "bg-green-100 text-green-800 border-green-200";
       case "pending":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-200";
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
       case "rejected":
-        return "bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-200";
+        return "bg-red-100 text-red-800 border-red-200";
       case "suspended":
-        return "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-200";
+        return "bg-orange-100 text-orange-800 border-orange-200";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-200";
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
   const getCategoryColor = (category: string) => {
     switch (category.toLowerCase()) {
       case "concert":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
+        return "bg-purple-100 text-purple-800";
       case "conference":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+        return "bg-blue-100 text-blue-800";
       case "workshop":
-        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+        return "bg-green-100 text-green-800";
       case "sports":
-        return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
+        return "bg-orange-100 text-orange-800";
       default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
+        return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -122,8 +103,6 @@ export default function EventDetailPage({ params }: EventDetailPageProps) {
 
     const success = await updateEventStatus(event._id, selectedStatus);
     if (success) {
-      // Refresh the event data to show updated status
-      await refetch();
       setIsEditModalOpen(false);
     }
   };
@@ -133,6 +112,7 @@ export default function EventDetailPage({ params }: EventDetailPageProps) {
     setCurrentImageIndex((prev) =>
       prev === event.images.length - 1 ? 0 : prev + 1
     );
+    setIsSliderPlaying(false);
   };
 
   const prevImage = () => {
@@ -140,6 +120,7 @@ export default function EventDetailPage({ params }: EventDetailPageProps) {
     setCurrentImageIndex((prev) =>
       prev === 0 ? event.images.length - 1 : prev - 1
     );
+    setIsSliderPlaying(false);
   };
 
   if (loading) {
@@ -157,7 +138,7 @@ export default function EventDetailPage({ params }: EventDetailPageProps) {
           <h2 className='text-2xl font-bold text-red-600 mb-4'>
             Event Not Found
           </h2>
-          <p className='text-gray-600 mb-4'>
+          <p className='text-gray-600 dark:text-gray-300 mb-4'>
             {error || "The requested event could not be found."}
           </p>
           <Button
@@ -321,11 +302,17 @@ export default function EventDetailPage({ params }: EventDetailPageProps) {
               <p className='text-gray-600 dark:text-gray-300 mb-4'>
                 {event.location.address}
               </p>
-              <GoogleMapsWrapper
-                coordinates={event.location.coordinates as [number, number]}
-                address={event.location.address}
-                eventName={event.name}
-              />
+              <div className='h-64 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center'>
+                <div className='text-center'>
+                  <MapPin className='w-12 h-12 text-gray-400 mx-auto mb-2' />
+                  <p className='text-gray-500 dark:text-gray-400'>
+                    Map Integration
+                  </p>
+                  <p className='text-sm text-gray-400'>
+                    Coordinates: {event.location.coordinates.join(", ")}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -494,11 +481,11 @@ export default function EventDetailPage({ params }: EventDetailPageProps) {
         @keyframes modal-in {
           from {
             opacity: 0;
-            transform: scale(0.9) translateY(-20px);
+            transform: translateY(-20px);
           }
           to {
             opacity: 1;
-            transform: scale(1) translateY(0);
+            transform: translateY(0);
           }
         }
 

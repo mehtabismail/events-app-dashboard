@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEvents } from "@/components/useEvents";
+import { useEventStatus, EventStatus } from "@/components/useEventStatus";
 import { Button } from "@/components/ui/button";
 import {
   Calendar,
@@ -12,11 +13,25 @@ import {
   User,
   Image as ImageIcon,
   Video,
+  Edit,
 } from "lucide-react";
 
 export default function DashboardEvents() {
   const { events, loading, error, refetch } = useEvents();
+  const { updateEventStatus, loading: statusLoading } = useEventStatus();
   const router = useRouter();
+
+  // Modal state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<unknown>(null);
+  const [selectedStatus, setSelectedStatus] = useState<EventStatus>("pending");
+
+  // Debug logging
+  console.log("DashboardEvents rendered");
+  console.log("Events:", events);
+  console.log("Loading:", loading);
+  console.log("Error:", error);
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
@@ -36,8 +51,36 @@ export default function DashboardEvents() {
         return "bg-yellow-100 text-yellow-800 border-yellow-200";
       case "rejected":
         return "bg-red-100 text-red-800 border-red-200";
+      case "suspended":
+        return "bg-orange-100 text-orange-800 border-orange-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
+  const openEditModal = (event: unknown) => {
+    setSelectedEvent(event);
+    setSelectedStatus((event as { status: string }).status as EventStatus);
+    setIsEditModalOpen(true);
+  };
+
+  const closeEditModal = () => {
+    setIsEditModalOpen(false);
+    setSelectedEvent(null);
+    setSelectedStatus("pending");
+  };
+
+  const handleStatusUpdate = async () => {
+    if (!selectedEvent) return;
+
+    const success = await updateEventStatus(
+      (selectedEvent as { _id: string })._id,
+      selectedStatus
+    );
+    if (success) {
+      // Refresh the events data to show updated status
+      await refetch();
+      closeEditModal();
     }
   };
 
@@ -214,9 +257,11 @@ export default function DashboardEvents() {
                   <Button
                     size='sm'
                     className='flex-1 bg-blue-600 hover:bg-blue-700 text-white'
-                    onClick={() =>
-                      router.push(`/dashboard/events/${event._id}`)
-                    }
+                    onClick={() => {
+                      console.log("View Details clicked for event:", event._id);
+                      console.log("Router:", router);
+                      router.push(`/dashboard/event-detail-page`);
+                    }}
                   >
                     View Details
                   </Button>
@@ -224,10 +269,9 @@ export default function DashboardEvents() {
                     size='sm'
                     variant='outline'
                     className='hover:bg-gray-50 !text-black dark:text-white border border-gray-300 dark:border-gray-600'
-                    onClick={() =>
-                      router.push(`/dashboard/events/${event._id}`)
-                    }
+                    onClick={() => openEditModal(event)}
                   >
+                    <Edit className='w-4 h-4 mr-2' />
                     Edit
                   </Button>
                 </div>
@@ -255,6 +299,70 @@ export default function DashboardEvents() {
         )}
       </div>
 
+      {/* Edit Status Modal */}
+      {isEditModalOpen && selectedEvent ? (
+        <div className='fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4'>
+          <div className='bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl max-w-md w-full animate-modal-in'>
+            <h3 className='text-xl font-bold text-gray-900 dark:text-white mb-4'>
+              Update Event Status
+            </h3>
+            <p className='text-gray-600 dark:text-gray-300 mb-2'>
+              Event:{" "}
+              <span className='font-semibold'>
+                {(selectedEvent as { name: string }).name}
+              </span>
+            </p>
+            <p className='text-gray-600 dark:text-gray-300 mb-6'>
+              Select the new status for this event:
+            </p>
+
+            <div className='space-y-3 mb-6'>
+              {(
+                [
+                  "pending",
+                  "approved",
+                  "rejected",
+                  "suspended",
+                ] as EventStatus[]
+              ).map((status) => (
+                <label key={status} className='flex items-center'>
+                  <input
+                    type='radio'
+                    name='status'
+                    value={status}
+                    checked={selectedStatus === status}
+                    onChange={(e) =>
+                      setSelectedStatus(e.target.value as EventStatus)
+                    }
+                    className='mr-3'
+                  />
+                  <span className='text-gray-900 dark:text-white capitalize'>
+                    {status}
+                  </span>
+                </label>
+              ))}
+            </div>
+
+            <div className='flex gap-3'>
+              <Button
+                onClick={closeEditModal}
+                variant='outline'
+                className='flex-1'
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleStatusUpdate}
+                disabled={statusLoading}
+                className='flex-1 bg-blue-600 hover:bg-blue-700 text-white'
+              >
+                {statusLoading ? "Updating..." : "Update Status"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <style jsx>{`
         @keyframes fade-in {
           from {
@@ -267,9 +375,24 @@ export default function DashboardEvents() {
           }
         }
 
+        @keyframes modal-in {
+          from {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
         .animate-fade-in {
           animation: fade-in 0.6s ease-out forwards;
           opacity: 0;
+        }
+
+        .animate-modal-in {
+          animation: modal-in 0.3s ease-out forwards;
         }
 
         .line-clamp-2 {

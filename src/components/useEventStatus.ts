@@ -11,16 +11,25 @@ export function useEventStatus() {
   async function updateEventStatus(eventId: string, status: EventStatus) {
     setLoading(true);
     setError(null);
+
+    // Use local API proxy for development, direct backend for production
+    const apiUrl =
+      process.env.NODE_ENV === "development"
+        ? `/api/events/${eventId}/status`
+        : `${process.env.NEXT_PUBLIC_BASE_URL}${API_ENDPOINTS.update_event_status}/${eventId}/status`;
+
+    console.log("Updating event status from:", apiUrl);
+    console.log("Environment:", process.env.NODE_ENV);
+    console.log("Event ID:", eventId);
+    console.log("New Status:", status);
+
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}${API_ENDPOINTS.update_event_status}/${eventId}/status`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status }),
-          credentials: "include",
-        }
-      );
+      const res = await fetch(apiUrl, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+        credentials: "include",
+      });
 
       if (!res.ok) {
         setError("Failed to update event status");
