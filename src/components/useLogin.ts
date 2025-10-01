@@ -11,10 +11,7 @@ export function useLogin() {
     setError(null);
 
     // Use local API proxy for development, direct backend for production
-    const apiUrl =
-      process.env.NODE_ENV === "development"
-        ? "/api/login"
-        : `${process.env.NEXT_PUBLIC_BASE_URL}${API_ENDPOINTS.login}`;
+    const apiUrl = `${process.env.NEXT_PUBLIC_BASE_URL}${API_ENDPOINTS.login}`;
 
     console.log("Login API URL:", apiUrl);
 

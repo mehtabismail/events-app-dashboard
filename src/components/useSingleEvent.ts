@@ -17,10 +17,7 @@ export function useSingleEvent(eventId: string) {
     setError(null);
 
     // Use local API proxy for development, direct backend for production
-    const apiUrl =
-      process.env.NODE_ENV === "development"
-        ? `/api/events/${eventId}`
-        : `${process.env.NEXT_PUBLIC_BASE_URL}${API_ENDPOINTS.single_event}/${eventId}`;
+    const apiUrl = `${process.env.NEXT_PUBLIC_BASE_URL}${API_ENDPOINTS.single_event}/${eventId}`;
 
     console.log("Fetching single event from:", apiUrl);
 

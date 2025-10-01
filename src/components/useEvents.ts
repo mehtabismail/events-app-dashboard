@@ -68,10 +68,7 @@ export function useEvents() {
     setError(null);
 
     // Use local API proxy for development, direct backend for production
-    const apiUrl =
-      process.env.NODE_ENV === "development"
-        ? "/api/events"
-        : `${process.env.NEXT_PUBLIC_BASE_URL}${API_ENDPOINTS.all_events}`;
+    const apiUrl = `${process.env.NEXT_PUBLIC_BASE_URL}${API_ENDPOINTS.all_events}`;
 
     console.log("Fetching events from:", apiUrl);
     console.log("Environment:", process.env.NODE_ENV);
