@@ -259,8 +259,7 @@ export default function DashboardEvents() {
                     className='flex-1 bg-blue-600 hover:bg-blue-700 text-white'
                     onClick={() => {
                       console.log("View Details clicked for event:", event._id);
-                      console.log("Router:", router);
-                      router.push(`/dashboard/event-detail-page`);
+                      router.push(`/dashboard/events/${event._id}`);
                     }}
                   >
                     View Details

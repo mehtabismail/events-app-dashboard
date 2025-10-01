@@ -13,10 +13,7 @@ export function useEventStatus() {
     setError(null);
 
     // Use local API proxy for development, direct backend for production
-    const apiUrl =
-      process.env.NODE_ENV === "development"
-        ? `/api/events/${eventId}/status`
-        : `${process.env.NEXT_PUBLIC_BASE_URL}${API_ENDPOINTS.update_event_status}/${eventId}/status`;
+    const apiUrl = `${process.env.NEXT_PUBLIC_BASE_URL}${API_ENDPOINTS.update_event_status}/${eventId}/status`;
 
     console.log("Updating event status from:", apiUrl);
     console.log("Environment:", process.env.NODE_ENV);
