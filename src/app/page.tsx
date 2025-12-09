@@ -1,14 +1,20 @@
-import GreetingSplash from "@/components/GreetingSplash";
+"use client";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
 export default function Home() {
-  // Check for ?loginOnly=1 in the URL
-  let showLoginOnly = false;
-  if (typeof window !== "undefined") {
-    const params = new URLSearchParams(window.location.search);
-    showLoginOnly = params.get("loginOnly") === "1";
-  }
+  const router = useRouter();
+
+  useEffect(() => {
+    // Redirect directly to login page
+    router.push("/login");
+  }, [router]);
+
   return (
-    <main className='flex min-h-screen items-center justify-center bg-black transition-colors'>
-      <GreetingSplash showLoginOnly={showLoginOnly} />
+    <main className="flex min-h-screen items-center justify-center">
+      <div className="text-center">
+        <p className="text-gray-600">Redirecting to login...</p>
+      </div>
     </main>
   );
 }

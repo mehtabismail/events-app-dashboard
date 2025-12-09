@@ -7,13 +7,48 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "res.cloudinary.com",
-        pathname: "**", // allow all paths
+        pathname: "**",
       },
-    ],
-    domains: [
-      "https://events-app-backend-stage.up.railway.app",
-      "https://events-app-dashboard-qdurobb6o-mehtab-ismails-projects.vercel.app",
-      "https://events-app-dashboard-production.up.railway.app",
+      {
+        protocol: "https",
+        hostname: "media.istockphoto.com",
+        pathname: "**",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+        pathname: "**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.googleusercontent.com",
+        pathname: "**",
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+        pathname: "**",
+      },
+      {
+        protocol: "https",
+        hostname: "avatars.githubusercontent.com",
+        pathname: "**",
+      },
+      {
+        protocol: "https",
+        hostname: "i.pravatar.cc",
+        pathname: "**",
+      },
+      {
+        protocol: "https",
+        hostname: "ui-avatars.com",
+        pathname: "**",
+      },
+      {
+        protocol: "https",
+        hostname: "**",
+        pathname: "**",
+      },
     ],
   },
 };

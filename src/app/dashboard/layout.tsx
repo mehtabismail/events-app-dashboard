@@ -6,9 +6,9 @@ import {
   LayoutDashboard,
   CalendarCheck2,
   Users2,
-  UserCog,
   BarChart2,
   LogOut,
+  Clock,
 } from "lucide-react";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
 import { logout } from "@/components/useLogout";
@@ -28,10 +28,10 @@ const menu = [
   },
   { name: "Users", key: "users", icon: Users2, href: "/dashboard/users" },
   {
-    name: "Event Planners",
-    key: "eventPlanners",
-    icon: UserCog,
-    href: "/dashboard/event-planners",
+    name: "Pending Approvals",
+    key: "pending-approvals",
+    icon: Clock,
+    href: "/dashboard/pending-approvals",
   },
   {
     name: "Reports",
@@ -66,12 +66,13 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className='flex h-screen bg-gray-50 dark:bg-gray-900'>
-      <aside className='w-64 bg-white dark:bg-gray-800 shadow-lg border-r border-gray-200 dark:border-gray-700 p-6'>
-        <h2 className='text-xl font-bold mb-6 text-black dark:text-white'>
-          Admin Menu
-        </h2>
-        <nav className='flex flex-col gap-2'>
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
+      <aside
+        className="fixed left-0 top-0 h-screen w-64 shadow-lg border-r border-gray-200 dark:border-gray-700 p-6 overflow-y-auto z-30"
+        style={{ backgroundColor: "#1F9BB7" }}
+      >
+        <h2 className="text-xl font-bold mb-6 text-white">Admin Menu</h2>
+        <nav className="flex flex-col gap-2">
           {menu.map((item) => {
             const Icon = item.icon;
             const active = pathname === item.href;
@@ -81,19 +82,20 @@ export default function DashboardLayout({
                 onClick={() => handleNavigation(item.href)}
                 className={cn(
                   "flex items-center gap-3 px-4 py-2 rounded font-medium transition-colors w-full text-left",
-                  "hover:bg-gray-100 dark:hover:bg-zinc-800 text-black dark:text-white",
-                  active &&
-                    "bg-gray-200 dark:bg-zinc-800 text-blue-600 dark:text-blue-400 font-bold"
+                  "hover:bg-white/20 text-white",
+                  active && "bg-white/30 text-white font-bold"
                 )}
               >
-                <Icon size={20} className='shrink-0' />
+                <Icon size={20} className="shrink-0" />
                 {item.name}
               </button>
             );
           })}
         </nav>
       </aside>
-      <main className='flex-1 p-8'>{children}</main>
+      <main className="flex-1 ml-64 p-8 overflow-y-auto h-screen">
+        {children}
+      </main>
     </div>
   );
 }
