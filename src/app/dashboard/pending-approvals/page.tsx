@@ -5,7 +5,6 @@ import Image from "next/image";
 import {
   usePendingUsers,
   PendingUser,
-  GetPendingUsersParams,
 } from "@/components/usePendingUsers";
 import {
   useUpdateUserStatus,
@@ -14,11 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Clock,
-  UserCog,
   Search,
-  Mail,
-  Phone,
-  MapPin,
   Building2,
   Calendar,
   ChevronLeft,
@@ -33,7 +28,6 @@ import { cn } from "@/lib/utils";
 export default function PendingApprovalsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedUser, setSelectedUser] = useState<PendingUser | null>(null);
   const [statusChangeLoading, setStatusChangeLoading] = useState<string | null>(
     null
   );

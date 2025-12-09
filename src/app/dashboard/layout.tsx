@@ -10,7 +10,6 @@ import {
   LogOut,
   Clock,
 } from "lucide-react";
-import ThemeSwitcher from "@/components/ThemeSwitcher";
 import { logout } from "@/components/useLogout";
 
 const menu = [
@@ -49,10 +48,8 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
-    setLoggingOut(true);
     await logout();
     window.location.href = "/";
   };

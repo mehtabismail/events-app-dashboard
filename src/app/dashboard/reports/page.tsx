@@ -43,7 +43,6 @@ import {
   Activity,
   Target,
   Building2,
-  Mail,
   Phone,
   MapPin,
 } from "lucide-react";
@@ -324,12 +323,10 @@ function ReportPagination({
 
 // Overview Tab Content
 function OverviewTabContent({
-  period,
   dashboard,
   charts,
   loading,
 }: {
-  period: Period;
   dashboard: ReturnType<typeof useReportsDashboard>;
   charts: ReturnType<typeof useReportsCharts>;
   loading: boolean;
@@ -539,7 +536,7 @@ function OverviewTabContent({
 
 // Payments Tab Content
 function PaymentsTabContent() {
-  const { data, loading, error, fetchPayments } = useReportsPayments();
+  const { data, loading, fetchPayments } = useReportsPayments();
   const [filters, setFilters] = useState({
     page: 1,
     limit: 10,
@@ -1446,7 +1443,6 @@ export default function DashboardReports() {
         <div className="min-h-[600px]">
           {activeTab === "overview" && (
             <OverviewTabContent
-              period={period}
               dashboard={dashboard}
               charts={charts}
               loading={isLoading}

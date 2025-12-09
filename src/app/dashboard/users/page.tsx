@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useUsers, User, GetUsersParams } from "@/components/useUsers";
@@ -28,7 +28,8 @@ import {
 
 type RoleFilter = "all" | "user" | "event-planner";
 
-export default function DashboardUsers() {
+// Separate component that uses useSearchParams - must be wrapped in Suspense
+function DashboardUsersContent() {
   const searchParams = useSearchParams();
 
   // Filter states - check for role query parameter
@@ -883,5 +884,23 @@ export default function DashboardUsers() {
         }
       `}</style>
     </div>
+  );
+}
+
+// Main component with Suspense boundary
+export default function DashboardUsers() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600 dark:text-gray-400">Loading users...</p>
+          </div>
+        </div>
+      }
+    >
+      <DashboardUsersContent />
+    </Suspense>
   );
 }
