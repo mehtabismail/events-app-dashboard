@@ -1,6 +1,7 @@
 "use client";
 import { cn } from "@/lib/utils";
 import React, { useState } from "react";
+import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -8,7 +9,7 @@ import {
   Users2,
   BarChart2,
   LogOut,
-  Clock,
+  UserCog,
 } from "lucide-react";
 import { logout } from "@/components/useLogout";
 
@@ -27,10 +28,10 @@ const menu = [
   },
   { name: "Users", key: "users", icon: Users2, href: "/dashboard/users" },
   {
-    name: "Pending Approvals",
-    key: "pending-approvals",
-    icon: Clock,
-    href: "/dashboard/pending-approvals",
+    name: "Event Planners",
+    key: "event-planners",
+    icon: UserCog,
+    href: "/dashboard/event-planners",
   },
   {
     name: "Reports",
@@ -68,7 +69,16 @@ export default function DashboardLayout({
         className="fixed left-0 top-0 h-screen w-64 shadow-lg border-r border-gray-200 dark:border-gray-700 p-6 overflow-y-auto z-30"
         style={{ backgroundColor: "#1F9BB7" }}
       >
-        <h2 className="text-xl font-bold mb-6 text-white">Admin Menu</h2>
+        <div className="flex items-center gap-3 mb-6">
+          <Image
+            src="/AppIcon.png"
+            alt="App Icon"
+            width={32}
+            height={32}
+            className="w-8 h-8 object-contain"
+          />
+          <h2 className="text-xl font-bold text-white">Admin Menu</h2>
+        </div>
         <nav className="flex flex-col gap-2">
           {menu.map((item) => {
             const Icon = item.icon;

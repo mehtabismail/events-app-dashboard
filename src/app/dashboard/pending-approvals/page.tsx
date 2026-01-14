@@ -2,10 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import {
-  usePendingUsers,
-  PendingUser,
-} from "@/components/usePendingUsers";
+import { usePendingUsers, PendingUser } from "@/components/usePendingUsers";
 import {
   useUpdateUserStatus,
   UserStatus,

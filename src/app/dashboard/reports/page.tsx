@@ -45,7 +45,16 @@ import {
   Building2,
   Phone,
   MapPin,
+  Download,
+  FileSpreadsheet,
 } from "lucide-react";
+import {
+  exportOverviewReport,
+  exportPaymentsReport,
+  exportEventsReport,
+  exportUsersReport,
+  exportEventPlannersReport,
+} from "@/lib/exportUtils";
 
 // Tab types
 type ReportTab =
@@ -252,6 +261,79 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+// Download Dropdown Component
+function DownloadDropdown({
+  onDownload,
+  disabled = false,
+  label = "Download",
+}: {
+  onDownload: (format: "csv" | "excel") => void;
+  disabled?: boolean;
+  label?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <Button
+        onClick={() => setIsOpen(!isOpen)}
+        variant="outline"
+        disabled={disabled}
+        className="hover:bg-[#1F9BB7]/10 border-[#1F9BB7] text-[#1F9BB7]"
+      >
+        <Download className="w-4 h-4 mr-2" />
+        {label}
+      </Button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+          <button
+            onClick={() => {
+              onDownload("csv");
+              setIsOpen(false);
+            }}
+            className="w-full px-4 py-3 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 transition-colors"
+          >
+            <Download className="w-4 h-4 text-green-600" />
+            <div>
+              <p className="font-medium">Download CSV</p>
+              <p className="text-xs text-gray-500">Comma-separated values</p>
+            </div>
+          </button>
+          <button
+            onClick={() => {
+              onDownload("excel");
+              setIsOpen(false);
+            }}
+            className="w-full px-4 py-3 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 transition-colors border-t border-gray-200 dark:border-gray-700"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-blue-600" />
+            <div>
+              <p className="font-medium">Download Excel</p>
+              <p className="text-xs text-gray-500">Microsoft Excel format</p>
+            </div>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Pagination Component
 function ReportPagination({
   currentPage,
@@ -350,18 +432,32 @@ function OverviewTabContent({
     );
   }
 
+  // Handle download
+  const handleDownload = (format: "csv" | "excel") => {
+    if (data) {
+      exportOverviewReport(data, format);
+    }
+  };
+
   return (
     <div className="space-y-8">
-      {/* Date Range Info */}
-      <div className="text-sm text-gray-500 dark:text-gray-400">
-        Showing data from{" "}
-        <span className="font-medium">
-          {new Date(data.dateRange.start).toLocaleDateString()}
-        </span>{" "}
-        to{" "}
-        <span className="font-medium">
-          {new Date(data.dateRange.end).toLocaleDateString()}
-        </span>
+      {/* Date Range Info & Download */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          Showing data from{" "}
+          <span className="font-medium">
+            {new Date(data.dateRange.start).toLocaleDateString()}
+          </span>{" "}
+          to{" "}
+          <span className="font-medium">
+            {new Date(data.dateRange.end).toLocaleDateString()}
+          </span>
+        </div>
+        <DownloadDropdown
+          onDownload={handleDownload}
+          disabled={!data}
+          label="Export Overview"
+        />
       </div>
 
       {/* Main Stats Cards */}
@@ -573,6 +669,13 @@ function PaymentsTabContent() {
     );
   }
 
+  // Handle download
+  const handleDownload = (format: "csv" | "excel") => {
+    if (data?.transactions) {
+      exportPaymentsReport(data.transactions, format);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
@@ -610,6 +713,15 @@ function PaymentsTabContent() {
           ))}
         </div>
       )}
+
+      {/* Download Button */}
+      <div className="flex justify-end">
+        <DownloadDropdown
+          onDownload={handleDownload}
+          disabled={!data?.transactions || data.transactions.length === 0}
+          label="Export Payments"
+        />
+      </div>
 
       {/* Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4">
@@ -798,6 +910,13 @@ function EventsTabContent() {
     setFilters((prev) => ({ ...prev, [key]: value, page: 1 }));
   };
 
+  // Handle download
+  const handleDownload = (format: "csv" | "excel") => {
+    if (data?.events) {
+      exportEventsReport(data.events, format);
+    }
+  };
+
   if (loading && !data) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -808,7 +927,7 @@ function EventsTabContent() {
 
   return (
     <div className="space-y-6">
-      {/* Summary */}
+      {/* Summary & Download */}
       {data?.summary && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {Object.entries(data.summary.byStatus).map(([status, count]) => (
@@ -824,6 +943,15 @@ function EventsTabContent() {
           ))}
         </div>
       )}
+
+      {/* Download Button */}
+      <div className="flex justify-end">
+        <DownloadDropdown
+          onDownload={handleDownload}
+          disabled={!data?.events || data.events.length === 0}
+          label="Export Events"
+        />
+      </div>
 
       {/* Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4">
@@ -982,6 +1110,13 @@ function UsersTabContent() {
     fetchUsers(filters);
   }, [filters, fetchUsers]);
 
+  // Handle download
+  const handleDownload = (format: "csv" | "excel") => {
+    if (data?.users) {
+      exportUsersReport(data.users, format);
+    }
+  };
+
   if (loading && !data) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -1041,6 +1176,15 @@ function UsersTabContent() {
           </div>
         </div>
       )}
+
+      {/* Download Button */}
+      <div className="flex justify-end">
+        <DownloadDropdown
+          onDownload={handleDownload}
+          disabled={!data?.users || data.users.length === 0}
+          label="Export Users"
+        />
+      </div>
 
       {/* Search */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4">
@@ -1148,6 +1292,13 @@ function EventPlannersTabContent() {
     fetchEventPlanners(filters);
   }, [filters, fetchEventPlanners]);
 
+  // Handle download
+  const handleDownload = (format: "csv" | "excel") => {
+    if (data?.eventPlanners) {
+      exportEventPlannersReport(data.eventPlanners, format);
+    }
+  };
+
   if (loading && !data) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -1191,6 +1342,15 @@ function EventPlannersTabContent() {
           </div>
         </div>
       )}
+
+      {/* Download Button */}
+      <div className="flex justify-end">
+        <DownloadDropdown
+          onDownload={handleDownload}
+          disabled={!data?.eventPlanners || data.eventPlanners.length === 0}
+          label="Export Event Planners"
+        />
+      </div>
 
       {/* Search */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4">
