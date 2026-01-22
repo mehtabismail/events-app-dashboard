@@ -8,6 +8,7 @@ import {
   useUpdateUserStatus,
   UserStatus,
 } from "@/components/useUpdateUserStatus";
+import { useSignup } from "@/components/useSignup";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,7 +73,9 @@ export default function EventPlannersPage() {
     company_name: "",
     phone: "",
     address: "",
+    photo: null as File | null,
   });
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
   // Hooks
   const { users, loading, error, pagination, refetch, setUsers } = useUsers({
@@ -85,6 +88,7 @@ export default function EventPlannersPage() {
   const { updateUser, loading: updateLoading } = useUpdateUser();
   const { updateUserStatus, loading: statusUpdateLoading } =
     useUpdateUserStatus();
+  const { signup, loading: signupLoading } = useSignup();
 
   // Use ref to prevent infinite loops
   const hasFetchedRef = useRef(false);
@@ -239,7 +243,9 @@ export default function EventPlannersPage() {
       company_name: "",
       phone: "",
       address: "",
+      photo: null,
     });
+    setPhotoPreview(null);
     setIsCreateModalOpen(true);
   };
 
@@ -257,6 +263,17 @@ export default function EventPlannersPage() {
       phone: "",
       address: "",
     });
+    setCreateFormData({
+      first_name: "",
+      last_name: "",
+      email: "",
+      password: "",
+      company_name: "",
+      phone: "",
+      address: "",
+      photo: null,
+    });
+    setPhotoPreview(null);
   };
 
   // Handle edit form change
@@ -267,8 +284,19 @@ export default function EventPlannersPage() {
 
   // Handle create form change
   const handleCreateFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+    const { name, value, files } = e.target;
+    if (name === "photo" && files && files[0]) {
+      const file = files[0];
+      setCreateFormData((prev) => ({ ...prev, photo: file }));
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
     setCreateFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   // Handle update user
@@ -296,15 +324,34 @@ export default function EventPlannersPage() {
     }
   };
 
-  // Handle create user (placeholder - needs backend API)
+  // Handle create user
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement create event planner API call
-    // For now, just show a message that this feature needs backend support
-    alert(
-      "Create Event Planner functionality requires backend API implementation."
-    );
+    
+    const newUser = await signup({
+      first_name: createFormData.first_name,
+      last_name: createFormData.last_name,
+      email: createFormData.email,
+      password: createFormData.password,
+      role: "event-planner",
+      company_name: createFormData.company_name || undefined,
+      phone: createFormData.phone || undefined,
+      address: createFormData.address || undefined,
+      photo: createFormData.photo || undefined,
+    });
+
+    if (newUser) {
+      // Refresh the users list
+      hasFetchedRef.current = false;
+      refetch({
+        page: currentPage,
+        limit: 20,
+        role: "event-planner",
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      });
     closeModals();
+    }
   };
 
   // Filter users by status (client-side)
@@ -1155,6 +1202,63 @@ export default function EventPlannersPage() {
                     className="mt-1"
                   />
                 </div>
+
+                <div>
+                  <Label htmlFor="create_photo">Profile Photo</Label>
+                  <div className="mt-1">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="create_photo"
+                        name="photo"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleCreateFormChange}
+                        className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[#1F9BB7] file:text-white hover:file:bg-[#1a8a9f] file:cursor-pointer"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Select an image file (JPG, PNG, etc.)
+                    </p>
+                  </div>
+                  {photoPreview && (
+                    <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                      <div className="flex items-center gap-4">
+                        <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-gray-300 dark:border-gray-600 flex-shrink-0">
+                          <Image
+                            src={photoPreview}
+                            alt="Photo preview"
+                            width={80}
+                            height={80}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {createFormData.photo?.name}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            {(createFormData.photo?.size || 0) / 1024} KB
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setCreateFormData((prev) => ({ ...prev, photo: null }));
+                            setPhotoPreview(null);
+                            // Reset file input
+                            const fileInput = document.getElementById("create_photo") as HTMLInputElement;
+                            if (fileInput) fileInput.value = "";
+                          }}
+                          className="flex-shrink-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="mt-6 flex gap-3">
@@ -1169,9 +1273,19 @@ export default function EventPlannersPage() {
                 <Button
                   type="submit"
                   className="flex-1 bg-[#1F9BB7] hover:bg-[#1a8a9f] text-white"
+                  disabled={signupLoading}
                 >
+                  {signupLoading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
                   <Plus className="w-4 h-4 mr-2" />
                   Create Event Planner
+                    </>
+                  )}
                 </Button>
               </div>
             </form>

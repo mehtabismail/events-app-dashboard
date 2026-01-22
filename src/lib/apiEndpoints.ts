@@ -1,6 +1,7 @@
 export const API_ENDPOINTS = {
   login: "/login",
   logout: "/logout",
+  signup: "/signup", // POST - Create new user/event planner
   all_events: "/admin/events",
   update_event_status: "/events",
   single_event: "/events", // For fetching single event by ID

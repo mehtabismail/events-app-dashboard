@@ -1,16 +1,19 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
 import { useUsers, User, GetUsersParams } from "@/components/useUsers";
 import { useUpdateUser, UpdateUserParams } from "@/components/useUpdateUser";
+import {
+  useUpdateUserStatus,
+  UserStatus,
+} from "@/components/useUpdateUserStatus";
+import { useSignup } from "@/components/useSignup";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Users2,
-  UserCog,
   Search,
   Mail,
   Phone,
@@ -23,28 +26,30 @@ import {
   ChevronRight,
   X,
   RefreshCw,
-  User as UserIcon,
+  Plus,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-type RoleFilter = "all" | "user" | "event-planner";
+// Extended User type with status
+interface UserWithStatus extends User {
+  status?: "active" | "suspended";
+}
 
-// Separate component that uses useSearchParams - must be wrapped in Suspense
-function DashboardUsersContent() {
-  const searchParams = useSearchParams();
-
-  // Filter states - check for role query parameter
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>(
-    (searchParams.get("role") as RoleFilter) || "all"
-  );
+export default function DashboardUsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortBy, setSortBy] = useState("createdAt");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusChangeLoading, setStatusChangeLoading] = useState<string | null>(
+    null
+  );
 
   // Modal states
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserWithStatus | null>(null);
 
   // Edit form state
   const [editFormData, setEditFormData] = useState<UpdateUserParams>({
@@ -56,62 +61,65 @@ function DashboardUsersContent() {
     address: "",
   });
 
-  // Hooks - use roleFilter from state (which may come from query param)
+  // Create form state
+  const [createFormData, setCreateFormData] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    password: "",
+    company_name: "",
+    phone: "",
+    address: "",
+    photo: null as File | null,
+  });
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+
+  // Hooks - always fetch only users (not event-planners)
   const { users, loading, error, pagination, refetch, setUsers } = useUsers({
     page: 1,
-    limit: 12,
-    role: roleFilter,
+    limit: 20,
+    role: "user",
     sortBy: "createdAt",
     sortOrder: "desc",
   });
   const { updateUser, loading: updateLoading } = useUpdateUser();
+  const { updateUserStatus, loading: statusUpdateLoading } =
+    useUpdateUserStatus();
+  const { signup, loading: signupLoading } = useSignup();
 
-  // Fetch users when filters change
-  const handleFetchUsers = (params?: Partial<GetUsersParams>) => {
-    const fetchParams: GetUsersParams = {
-      page: params?.page ?? currentPage,
-      limit: 12,
-      role: params?.role ?? roleFilter,
-      search: params?.search ?? (searchTerm || undefined),
-      sortBy: params?.sortBy ?? sortBy,
-      sortOrder: params?.sortOrder ?? sortOrder,
-    };
-    refetch(fetchParams);
-  };
+  // Use ref to prevent infinite loops
+  const hasFetchedRef = useRef(false);
+  const lastPageRef = useRef(1);
 
-  // Handle query parameter changes on mount
+  // Initial fetch and fetch when page changes
   useEffect(() => {
-    const roleParam = searchParams.get("role");
-    if (
-      roleParam &&
-      (roleParam === "all" ||
-        roleParam === "user" ||
-        roleParam === "event-planner")
-    ) {
-      const role = roleParam as RoleFilter;
-      setRoleFilter(role);
-      setCurrentPage(1);
+    if (!hasFetchedRef.current || lastPageRef.current !== currentPage) {
+      hasFetchedRef.current = true;
+      lastPageRef.current = currentPage;
       refetch({
-        page: 1,
-        limit: 12,
-        role: role,
+        page: currentPage,
+        limit: 20,
+        role: "user",
         sortBy: "createdAt",
         sortOrder: "desc",
       });
     }
-  }, [searchParams, refetch]);
-
-  // Handle role filter change
-  const handleRoleFilter = (role: RoleFilter) => {
-    setRoleFilter(role);
-    setCurrentPage(1);
-    handleFetchUsers({ role, page: 1 });
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage]);
 
   // Handle search
   const handleSearch = () => {
     setCurrentPage(1);
-    handleFetchUsers({ search: searchTerm || undefined, page: 1 });
+    hasFetchedRef.current = false;
+    lastPageRef.current = 1;
+    refetch({
+      page: 1,
+      limit: 20,
+      role: "user",
+      search: searchTerm || undefined,
+      sortBy: "createdAt",
+      sortOrder: "desc",
+    });
   };
 
   // Handle search on Enter key
@@ -124,25 +132,89 @@ function DashboardUsersContent() {
   // Handle page change
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
-    handleFetchUsers({ page: newPage });
   };
 
-  // Handle sort change
-  const handleSortChange = (field: string) => {
-    const newOrder = sortBy === field && sortOrder === "desc" ? "asc" : "desc";
-    setSortBy(field);
-    setSortOrder(newOrder);
-    handleFetchUsers({ sortBy: field, sortOrder: newOrder });
+  // Handle refresh
+  const handleRefresh = () => {
+    hasFetchedRef.current = false;
+    refetch({
+      page: currentPage,
+      limit: 20,
+      role: "user",
+      search: searchTerm || undefined,
+      sortBy: "createdAt",
+      sortOrder: "desc",
+    });
+  };
+
+  // Format date
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  // Get status badge color
+  const getStatusBadgeColor = (status?: string) => {
+    switch (status) {
+      case "active":
+        return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200";
+      case "suspended":
+        return "bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-200";
+      default:
+        return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200";
+    }
+  };
+
+  // Get status icon
+  const getStatusIcon = (status?: string) => {
+    switch (status) {
+      case "active":
+        return CheckCircle2;
+      case "suspended":
+        return XCircle;
+      default:
+        return CheckCircle2;
+    }
+  };
+
+  // Get status display name
+  const getStatusDisplayName = (status?: string) => {
+    if (!status || status === "active") return "Active";
+    if (status === "suspended") return "Suspended";
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  };
+
+  // Handle status change
+  const handleStatusChange = async (
+    user: UserWithStatus,
+    newStatus: UserStatus
+  ) => {
+    setStatusChangeLoading(user._id);
+    const updatedUser = await updateUserStatus(user._id, newStatus);
+
+    if (updatedUser) {
+      // Update the user in the local state
+      setUsers((prevUsers: User[]) =>
+        prevUsers.map((u) =>
+          u._id === updatedUser._id ? { ...u, status: newStatus } : u
+        )
+      );
+    }
+
+    setStatusChangeLoading(null);
   };
 
   // Open view modal
-  const openViewModal = (user: User) => {
+  const openViewModal = (user: UserWithStatus) => {
     setSelectedUser(user);
     setIsViewModalOpen(true);
   };
 
   // Open edit modal
-  const openEditModal = (user: User) => {
+  const openEditModal = (user: UserWithStatus) => {
     setSelectedUser(user);
     setEditFormData({
       first_name: user.first_name || "",
@@ -155,10 +227,27 @@ function DashboardUsersContent() {
     setIsEditModalOpen(true);
   };
 
+  // Open create modal
+  const openCreateModal = () => {
+    setCreateFormData({
+      first_name: "",
+      last_name: "",
+      email: "",
+      password: "",
+      company_name: "",
+      phone: "",
+      address: "",
+      photo: null,
+    });
+    setPhotoPreview(null);
+    setIsCreateModalOpen(true);
+  };
+
   // Close modals
   const closeModals = () => {
     setIsViewModalOpen(false);
     setIsEditModalOpen(false);
+    setIsCreateModalOpen(false);
     setSelectedUser(null);
     setEditFormData({
       first_name: "",
@@ -168,12 +257,40 @@ function DashboardUsersContent() {
       phone: "",
       address: "",
     });
+    setCreateFormData({
+      first_name: "",
+      last_name: "",
+      email: "",
+      password: "",
+      company_name: "",
+      phone: "",
+      address: "",
+      photo: null,
+    });
+    setPhotoPreview(null);
   };
 
   // Handle edit form change
   const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setEditFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Handle create form change
+  const handleCreateFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, files } = e.target;
+    if (name === "photo" && files && files[0]) {
+      const file = files[0];
+      setCreateFormData((prev) => ({ ...prev, photo: file }));
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setCreateFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   // Handle update user
@@ -194,68 +311,64 @@ function DashboardUsersContent() {
     const updatedUser = await updateUser(selectedUser._id, updates);
     if (updatedUser) {
       // Update local state
-      setUsers((prevUsers) =>
+      setUsers((prevUsers: User[]) =>
         prevUsers.map((u) => (u._id === selectedUser._id ? updatedUser : u))
       );
       closeModals();
     }
   };
 
-  // Format date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
+  // Handle create user
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const newUser = await signup({
+      first_name: createFormData.first_name,
+      last_name: createFormData.last_name,
+      email: createFormData.email,
+      password: createFormData.password,
+      role: "user", // Always create as user role
+      company_name: createFormData.company_name || undefined,
+      phone: createFormData.phone || undefined,
+      address: createFormData.address || undefined,
+      photo: createFormData.photo || undefined,
     });
-  };
 
-  // Get role badge color
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case "user":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
-      case "event-planner":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
-      default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
+    if (newUser) {
+      // Refresh the users list
+      hasFetchedRef.current = false;
+      refetch({
+        page: currentPage,
+        limit: 20,
+        role: "user",
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      });
+      closeModals();
     }
   };
 
-  // Get role display name
-  const getRoleDisplayName = (role: string) => {
-    switch (role) {
-      case "user":
-        return "User";
-      case "event-planner":
-        return "Event Planner";
-      default:
-        return role;
-    }
-  };
+  // Filter users by status (client-side)
+  const filteredUsers =
+    statusFilter === "all"
+      ? users
+      : users.filter((user: UserWithStatus) => {
+          const userStatus = (user as UserWithStatus).status || "active";
+          return userStatus === statusFilter;
+        });
 
-  // Role filter options
-  const roleFilters = [
+  // Status filter options
+  const statusFilters = [
+    { value: "all", label: "All", color: "bg-gray-100 text-gray-800" },
     {
-      value: "all" as RoleFilter,
-      label: "All",
-      icon: Users2,
-      color:
-        "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-200",
+      value: "active",
+      label: "Active",
+      color: "bg-green-100 text-green-800",
     },
     {
-      value: "user" as RoleFilter,
-      label: "Users",
-      icon: UserIcon,
-      color:
-        "bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200",
-    },
-    {
-      value: "event-planner" as RoleFilter,
-      label: "Event Planners",
-      icon: UserCog,
-      color:
-        "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900 dark:text-purple-200",
+      value: "suspended",
+      label: "Suspended",
+      color: "bg-red-100 text-red-800",
     },
   ];
 
@@ -281,7 +394,7 @@ function DashboardUsersContent() {
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
           <Button
-            onClick={() => handleFetchUsers()}
+            onClick={handleRefresh}
             className="bg-blue-600 hover:bg-blue-700"
           >
             Try Again
@@ -292,25 +405,36 @@ function DashboardUsersContent() {
   }
 
   return (
-    <div className="w-full relative">
-      <div className="max-w-7xl mx-auto relative z-0">
+    <div className="w-full">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-            Users Management
+                Users
           </h1>
           <p className="text-gray-500 dark:text-gray-300">
-            Manage and view all users and event planners in your system
-          </p>
+                Manage all users, their status, and profiles
+              </p>
+            </div>
+            <Button
+              onClick={openCreateModal}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add User
+            </Button>
+          </div>
           <div className="mt-4 flex flex-wrap items-center gap-4">
             <Button
-              onClick={() => handleFetchUsers()}
+              onClick={handleRefresh}
               variant="outline"
-              className="hover:bg-blue-50 dark:hover:bg-blue-900/20"
+              className="hover:bg-blue-600/10"
               disabled={loading}
             >
               <RefreshCw
-                className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`}
+                className={cn("w-4 h-4 mr-2", loading && "animate-spin")}
               />
               Refresh
             </Button>
@@ -322,24 +446,24 @@ function DashboardUsersContent() {
         </div>
 
         {/* Search and Filters Bar */}
-        <div className="mb-6 space-y-4 relative z-0">
+        <div className="mb-6 space-y-4">
           {/* Search Bar */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 relative z-0">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 z-10" />
-                <Input
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
                   type="text"
                   placeholder="Search by name, email, or company..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyPress={handleSearchKeyPress}
-                  className="pl-10 w-full relative z-0"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
               </div>
               <Button
                 onClick={handleSearch}
-                className="bg-blue-600 hover:bg-blue-700 text-white relative z-0"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 <Search className="w-4 h-4 mr-2" />
                 Search
@@ -347,46 +471,26 @@ function DashboardUsersContent() {
             </div>
           </div>
 
-          {/* Role Filter Tabs */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 relative z-0">
+          {/* Status Filter Tabs */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4">
             <div className="flex flex-wrap items-center gap-2">
-              {roleFilters.map((filter) => {
-                const Icon = filter.icon;
-                const isActive = roleFilter === filter.value;
-                const count =
-                  filter.value === "all"
-                    ? pagination?.totalUsers || 0
-                    : users.filter((u) => u.role === filter.value).length;
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mr-2">
+                Filter by Status:
+              </span>
+              {statusFilters.map((filter) => {
+                const isActive = statusFilter === filter.value;
                 return (
                   <button
                     key={filter.value}
-                    onClick={() => handleRoleFilter(filter.value)}
-                    className={`
-                      px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200
-                      border-2 flex items-center gap-2
-                      ${
+                    onClick={() => setStatusFilter(filter.value)}
+                    className={cn(
+                      "px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 border-2",
                         isActive
-                          ? `${filter.color} border-current shadow-md scale-105`
+                        ? `${filter.color} border-current shadow-md`
                           : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-transparent hover:bg-gray-200 dark:hover:bg-gray-600"
-                      }
-                    `}
+                    )}
                   >
-                    <Icon className="w-4 h-4" />
-                    <span>{filter.label}</span>
-                    <span
-                      className={`
-                        px-2 py-0.5 rounded-full text-xs font-bold
-                        ${
-                          isActive
-                            ? "bg-white/30 dark:bg-black/30"
-                            : "bg-gray-200 dark:bg-gray-600"
-                        }
-                      `}
-                    >
-                      {filter.value === "all"
-                        ? pagination?.totalUsers || 0
-                        : count}
-                    </span>
+                    {filter.label}
                   </button>
                 );
               })}
@@ -394,117 +498,224 @@ function DashboardUsersContent() {
           </div>
         </div>
 
-        {/* Users Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 relative z-20">
-          {users.map((user, index) => (
-            <div
-              key={user._id}
-              className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 animate-fade-in overflow-hidden relative z-20 isolate"
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              {/* User Header with Avatar */}
-              <div className="relative bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 p-6 pb-12 z-0">
-                <div className="absolute top-3 right-3 z-20">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(
-                      user.role
-                    )}`}
-                  >
-                    {getRoleDisplayName(user.role)}
-                  </span>
-                </div>
-              </div>
+        {/* Users Table */}
+        {filteredUsers.length > 0 ? (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      User
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      Company
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      Contact
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      Joined
+                    </th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {filteredUsers.map((user: UserWithStatus) => {
+                    const StatusIcon = getStatusIcon(
+                      (user as UserWithStatus).status
+                    );
+                    const isChangingStatus = statusChangeLoading === user._id;
 
-              {/* Avatar */}
-              <div className="relative -mt-10 flex justify-center z-10">
-                <div className="w-20 h-20 rounded-full border-4 border-white dark:border-gray-800 overflow-hidden bg-gray-200 dark:bg-gray-700 relative z-10">
+                    return (
+                      <tr
+              key={user._id}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                      >
+                        {/* User Info */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
                   {user.photo ? (
                     <Image
                       src={user.photo}
                       alt={`${user.first_name} ${user.last_name}`}
-                      width={80}
-                      height={80}
+                                  width={48}
+                                  height={48}
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400 to-purple-500">
-                      <span className="text-2xl font-bold text-white">
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-500">
+                                  <span className="text-lg font-bold text-white">
                         {user.first_name?.charAt(0) || ""}
                         {user.last_name?.charAt(0) || ""}
                       </span>
                     </div>
                   )}
                 </div>
-              </div>
-
-              {/* User Info */}
-              <div className="p-6 pt-4 text-center">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+                            <div>
+                              <p className="font-semibold text-gray-900 dark:text-white">
                   {user.first_name} {user.last_name}
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 truncate">
+                              </p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
                   {user.email}
                 </p>
+                            </div>
+                          </div>
+                        </td>
 
-                {/* Quick Info */}
-                <div className="space-y-2 mb-4">
-                  {user.company_name && (
-                    <div className="flex items-center justify-center text-xs text-gray-600 dark:text-gray-400">
-                      <Building2 className="w-3 h-3 mr-1" />
-                      <span className="truncate">{user.company_name}</span>
+                        {/* Company */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-gray-400" />
+                            <span className="text-gray-900 dark:text-white">
+                              {user.company_name || "-"}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Contact */}
+                        <td className="px-6 py-4">
+                          <div className="space-y-1">
+                            {user.phone && (
+                              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                <Phone className="w-3 h-3" />
+                                {user.phone}
                     </div>
                   )}
-                  <div className="flex items-center justify-center text-xs text-gray-600 dark:text-gray-400">
-                    <Calendar className="w-3 h-3 mr-1" />
-                    <span>Joined {formatDate(user.createdAt)}</span>
+                            {user.address && (
+                              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                <MapPin className="w-3 h-3" />
+                                <span className="truncate max-w-[150px]">
+                                  {user.address}
+                                </span>
                   </div>
+                            )}
+                            {!user.phone && !user.address && (
+                              <span className="text-gray-400">-</span>
+                            )}
                 </div>
+                        </td>
 
-                {/* Action Buttons */}
-                <div className="flex gap-2">
+                        {/* Status */}
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col gap-2">
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border w-fit",
+                                getStatusBadgeColor(
+                                  (user as UserWithStatus).status
+                                )
+                              )}
+                            >
+                              <StatusIcon className="w-3 h-3" />
+                              {getStatusDisplayName(
+                                (user as UserWithStatus).status
+                              )}
+                            </span>
+                            {/* Status Change Dropdown */}
+                            <select
+                              value={(user as UserWithStatus).status || "active"}
+                              onChange={(e) =>
+                                handleStatusChange(
+                                  user,
+                                  e.target.value as UserStatus
+                                )
+                              }
+                              disabled={isChangingStatus || statusUpdateLoading}
+                              className={cn(
+                                "text-xs px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-600",
+                                isChangingStatus &&
+                                  "opacity-50 cursor-not-allowed"
+                              )}
+                            >
+                              <option value="active">Set Active</option>
+                              <option value="suspended">Set Suspended</option>
+                            </select>
+                            {isChangingStatus && (
+                              <div className="text-xs text-gray-500 flex items-center">
+                                <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                                Updating...
+                              </div>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Joined Date */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                            <Calendar className="w-4 h-4" />
+                            {formatDate(user.createdAt)}
+                          </div>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-end gap-2">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="flex-1 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                              className="hover:bg-blue-600/10"
                     onClick={() => openViewModal(user)}
                   >
-                    <Eye className="w-4 h-4 mr-1" />
-                    View
+                              <Eye className="w-4 h-4" />
                   </Button>
                   <Button
                     size="sm"
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                              className="bg-blue-600 hover:bg-blue-700 text-white"
                     onClick={() => openEditModal(user)}
                   >
-                    <Edit className="w-4 h-4 mr-1" />
-                    Edit
+                              <Edit className="w-4 h-4" />
                   </Button>
                 </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
               </div>
             </div>
-          ))}
-        </div>
-
-        {/* Empty State */}
-        {users.length === 0 && !loading && (
-          <div className="text-center py-12">
-            <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+        ) : (
+          // Empty State
+          <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+            <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
               <Users2 className="w-12 h-12 text-gray-400" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
               No Users Found
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              {searchTerm
-                ? `No users match "${searchTerm}". Try a different search term.`
-                : "There are no users to display at the moment."}
+              {searchTerm || statusFilter !== "all"
+                ? "No users match your search/filter criteria."
+                : "There are no users registered yet."}
             </p>
+            <div className="flex justify-center gap-3">
+              {(searchTerm || statusFilter !== "all") && (
             <Button
-              onClick={() => handleFetchUsers()}
+                  onClick={() => {
+                    setSearchTerm("");
+                    setStatusFilter("all");
+                    handleRefresh();
+                  }}
+                  variant="outline"
+                >
+                  Clear Filters
+                </Button>
+              )}
+              <Button
+                onClick={openCreateModal}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              Refresh
+                <Plus className="w-4 h-4 mr-2" />
+                Add User
             </Button>
+            </div>
           </div>
         )}
 
@@ -545,14 +756,13 @@ function DashboardUsersContent() {
                       <button
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`
-                        w-8 h-8 rounded-lg text-sm font-medium transition-colors
-                        ${
+                        disabled={loading}
+                        className={cn(
+                          "w-8 h-8 rounded-lg text-sm font-medium transition-colors",
                           currentPage === pageNum
                             ? "bg-blue-600 text-white"
                             : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                        }
-                      `}
+                        )}
                       >
                         {pageNum}
                       </button>
@@ -580,7 +790,7 @@ function DashboardUsersContent() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto animate-modal-in">
             {/* Modal Header */}
-            <div className="relative bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 p-6 pb-16 rounded-t-2xl">
+            <div className="relative bg-gradient-to-br from-blue-600 via-blue-500 to-purple-500 p-6 pb-16 rounded-t-2xl">
               <button
                 onClick={closeModals}
                 className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
@@ -602,7 +812,7 @@ function DashboardUsersContent() {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400 to-purple-500">
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-500">
                     <span className="text-3xl font-bold text-white">
                       {selectedUser.first_name?.charAt(0) || ""}
                       {selectedUser.last_name?.charAt(0) || ""}
@@ -618,13 +828,20 @@ function DashboardUsersContent() {
                 <h4 className="text-2xl font-bold text-gray-900 dark:text-white">
                   {selectedUser.first_name} {selectedUser.last_name}
                 </h4>
+                <div className="flex items-center justify-center gap-2 mt-2">
                 <span
-                  className={`inline-block mt-2 px-3 py-1 rounded-full text-sm font-medium ${getRoleBadgeColor(
-                    selectedUser.role
-                  )}`}
-                >
-                  {getRoleDisplayName(selectedUser.role)}
+                    className={cn(
+                      "inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium border",
+                      getStatusBadgeColor((selectedUser as UserWithStatus).status)
+                    )}
+                  >
+                    {React.createElement(
+                      getStatusIcon((selectedUser as UserWithStatus).status),
+                      { className: "w-4 h-4" }
+                    )}
+                    {getStatusDisplayName((selectedUser as UserWithStatus).status)}
                 </span>
+                </div>
               </div>
 
               <div className="space-y-4">
@@ -711,7 +928,7 @@ function DashboardUsersContent() {
                   }}
                 >
                   <Edit className="w-4 h-4 mr-2" />
-                  Edit User
+                  Edit Profile
                 </Button>
               </div>
             </div>
@@ -724,7 +941,7 @@ function DashboardUsersContent() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto animate-modal-in">
             {/* Modal Header */}
-            <div className="relative bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 p-6 rounded-t-2xl">
+            <div className="relative bg-gradient-to-br from-blue-600 via-blue-500 to-purple-500 p-6 rounded-t-2xl">
               <button
                 onClick={closeModals}
                 className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
@@ -733,7 +950,7 @@ function DashboardUsersContent() {
               </button>
               <h3 className="text-xl font-bold text-white">Edit User</h3>
               <p className="text-white/80 text-sm mt-1">
-                Update user information for {selectedUser.first_name}{" "}
+                Update profile for {selectedUser.first_name}{" "}
                 {selectedUser.last_name}
               </p>
             </div>
@@ -840,7 +1057,211 @@ function DashboardUsersContent() {
                   ) : (
                     <>
                       <Edit className="w-4 h-4 mr-2" />
-                      Update User
+                      Update Profile
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create User Modal */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto animate-modal-in">
+            {/* Modal Header */}
+            <div className="relative bg-gradient-to-br from-blue-600 via-blue-500 to-purple-500 p-6 rounded-t-2xl">
+              <button
+                onClick={closeModals}
+                className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <h3 className="text-xl font-bold text-white">Add New User</h3>
+              <p className="text-white/80 text-sm mt-1">
+                Create a new user account
+              </p>
+            </div>
+
+            {/* Create Form */}
+            <form onSubmit={handleCreateUser} className="p-6">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="create_first_name">First Name *</Label>
+                    <Input
+                      id="create_first_name"
+                      name="first_name"
+                      value={createFormData.first_name}
+                      onChange={handleCreateFormChange}
+                      placeholder="First name"
+                      className="mt-1"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="create_last_name">Last Name *</Label>
+                    <Input
+                      id="create_last_name"
+                      name="last_name"
+                      value={createFormData.last_name}
+                      onChange={handleCreateFormChange}
+                      placeholder="Last name"
+                      className="mt-1"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="create_email">Email Address *</Label>
+                  <Input
+                    id="create_email"
+                    name="email"
+                    type="email"
+                    value={createFormData.email}
+                    onChange={handleCreateFormChange}
+                    placeholder="Email address"
+                    className="mt-1"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="create_password">Password *</Label>
+                  <Input
+                    id="create_password"
+                    name="password"
+                    type="password"
+                    value={createFormData.password}
+                    onChange={handleCreateFormChange}
+                    placeholder="Password"
+                    className="mt-1"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="create_company_name">Company Name</Label>
+                  <Input
+                    id="create_company_name"
+                    name="company_name"
+                    value={createFormData.company_name}
+                    onChange={handleCreateFormChange}
+                    placeholder="Company name"
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="create_phone">Phone Number</Label>
+                  <Input
+                    id="create_phone"
+                    name="phone"
+                    type="tel"
+                    value={createFormData.phone}
+                    onChange={handleCreateFormChange}
+                    placeholder="Phone number"
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="create_address">Address</Label>
+                  <Input
+                    id="create_address"
+                    name="address"
+                    value={createFormData.address}
+                    onChange={handleCreateFormChange}
+                    placeholder="Address"
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="create_photo">Profile Photo</Label>
+                  <div className="mt-1">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="create_photo"
+                        name="photo"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleCreateFormChange}
+                        className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 file:cursor-pointer"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Select an image file (JPG, PNG, etc.)
+                    </p>
+                  </div>
+                  {photoPreview && (
+                    <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                      <div className="flex items-center gap-4">
+                        <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-gray-300 dark:border-gray-600 flex-shrink-0">
+                          <Image
+                            src={photoPreview}
+                            alt="Photo preview"
+                            width={80}
+                            height={80}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {createFormData.photo?.name}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            {(createFormData.photo?.size || 0) / 1024} KB
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setCreateFormData((prev) => ({ ...prev, photo: null }));
+                            setPhotoPreview(null);
+                            // Reset file input
+                            const fileInput = document.getElementById("create_photo") as HTMLInputElement;
+                            if (fileInput) fileInput.value = "";
+                          }}
+                          className="flex-shrink-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={closeModals}
+                  disabled={signupLoading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                  disabled={signupLoading}
+                >
+                  {signupLoading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create User
                     </>
                   )}
                 </Button>
@@ -852,17 +1273,6 @@ function DashboardUsersContent() {
 
       {/* CSS Animations */}
       <style jsx>{`
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
         @keyframes modal-in {
           from {
             opacity: 0;
@@ -874,33 +1284,10 @@ function DashboardUsersContent() {
           }
         }
 
-        .animate-fade-in {
-          animation: fade-in 0.5s ease-out forwards;
-          opacity: 0;
-        }
-
         .animate-modal-in {
           animation: modal-in 0.3s ease-out forwards;
         }
       `}</style>
     </div>
-  );
-}
-
-// Main component with Suspense boundary
-export default function DashboardUsers() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">Loading users...</p>
-          </div>
-        </div>
-      }
-    >
-      <DashboardUsersContent />
-    </Suspense>
   );
 }
