@@ -373,7 +373,7 @@ export default function DashboardOverview() {
             </button>
 
             <button
-              onClick={() => router.push("/dashboard/users?role=event-planner")}
+              onClick={() => router.push("/dashboard/event-planners")}
               className="p-4 text-left border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <UserCog className="w-8 h-8 text-purple-600 dark:text-purple-400 mb-2" />
@@ -440,7 +440,7 @@ export default function DashboardOverview() {
                   className={cn(
                     "w-4 h-4",
                     (reportsDashboard.loading || reportsCharts.loading) &&
-                      "animate-spin"
+                    "animate-spin"
                   )}
                 />
               </Button>

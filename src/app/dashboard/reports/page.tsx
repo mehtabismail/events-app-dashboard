@@ -66,10 +66,11 @@ type ReportTab =
 
 // Period options
 const periodOptions: { value: Period; label: string }[] = [
+  { value: "all", label: "All Time" },
   { value: "week", label: "7 Days" },
   { value: "month", label: "30 Days" },
   { value: "year", label: "12 Months" },
-  { value: "all", label: "All Time" },
+
 ];
 
 // Tab options
@@ -78,12 +79,12 @@ const tabOptions: {
   label: string;
   icon: React.ElementType;
 }[] = [
-  { value: "overview", label: "Overview", icon: BarChart2 },
-  { value: "payments", label: "Payments", icon: CreditCard },
-  { value: "events", label: "Events", icon: CalendarCheck2 },
-  { value: "users", label: "Users", icon: Users2 },
-  { value: "event-planners", label: "Event Planners", icon: UserCog },
-];
+    { value: "overview", label: "Overview", icon: BarChart2 },
+    { value: "payments", label: "Payments", icon: CreditCard },
+    // { value: "events", label: "Events", icon: CalendarCheck2 },
+    // { value: "users", label: "Users", icon: Users2 },
+    // { value: "event-planners", label: "Event Planners", icon: UserCog },
+  ];
 
 // Stat Card Component
 function StatCard({
@@ -1489,7 +1490,7 @@ function EventPlannersTabContent() {
 // Main Reports Page Component
 export default function DashboardReports() {
   const [activeTab, setActiveTab] = useState<ReportTab>("overview");
-  const [period, setPeriod] = useState<Period>("month");
+  const [period, setPeriod] = useState<Period>("all");
 
   const dashboard = useReportsDashboard();
   const charts = useReportsCharts();

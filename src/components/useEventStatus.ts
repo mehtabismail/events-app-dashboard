@@ -2,7 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { API_ENDPOINTS } from "@/lib/apiEndpoints";
 
-export type EventStatus = "pending" | "approved" | "rejected" | "suspended";
+export type EventStatus = "draft" | "pending" | "approved" | "rejected" | "suspended";
 
 export function useEventStatus() {
   const [loading, setLoading] = useState(false);
